@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>МедТренажёр</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --card: #ffffff;
+      --text: #18202c;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --green: #10b981;
+      --green-bg: #d1fae5;
+      --green-border: #059669;
+      --red: #ef4444;
+      --red-bg: #fee2e2;
+      --red-border: #dc2626;
+      --blue-bg: #e0f2fe;
+      --blue-border: #38bdf8;
+      --accent: #0ea5e9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 14px 14px 40px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .title-block h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .title-block p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .stats-pill {
+      display: flex;
+      gap: 10px;
+      background: var(--card);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .stat-ok { color: var(--green); }
+    .stat-err { color: var(--red); }
+
+    /* Filters & Upload */
+    .controls-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    select, .upload-btn {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+    }
+    .upload-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .upload-btn {
+      text-align: center;
+      cursor: pointer;
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      color: #3730a3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .reset-btn {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      background: #e5e9f0;
+      padding: 4px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+    .tab {
+      padding: 8px 4px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .tab.active {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(16,185,129,0.3);
+    }
+
+    /* Question Card */
+    .card {
+      background: var(--card);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+      border: 1px solid var(--border);
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .badge {
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .meta-topic {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #cbd5e1;
+      line-height: 1;
+    }
+    .star-btn.active { color: #f59e0b; }
+
+    .question-text {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      text-align: left;
+      transition: 0.15s;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .option:active { transform: scale(0.99); }
+    .opt-letter {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #475569;
+      flex-shrink: 0;
+    }
+
+    /* States */
+    .option.selected {
+      background: var(--blue-bg);
+      border-color: var(--blue-border);
+    }
+    .option.correct {
+      background: var(--green);
+      border-color: var(--green-border);
+      color: #fff;
+    }
+    .option.correct .opt-letter {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+    .option.wrong {
+      background: var(--red-bg);
+      border-color: var(--red-border);
+      color: #991b1b;
+    }
+    .option.wrong .opt-letter {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .next-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      background: var(--green);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 4px 12px rgba(16,185,129,0.25);
+    }
+    .next-btn.show { display: block; }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 16px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="title-block">
+      <h1>Тренажёр</h1>
+      <p>Неверный → вернётся снова</p>
+    </div>
+    <div class="stats-pill">
+      <span class="stat-ok">✓ <span id="okCount">0</span></span>
+      <span class="stat-err">✕ <span id="errCount">0</span></span>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <select id="subjectFilter"><option value="all">Все предметы</option></select>
+    <select id="topicFilter"><option value="all">Все темы</option></select>
+  </div>
+
+  <div class="upload-row">
+    <label class="upload-btn">
+      📂 Загрузить .txt (MyTest)
+      <input type="file" id="fileInput" accept=".txt" hidden />
+    </label>
+    <button class="reset-btn" id="resetBtn" title="Сбросить прогресс">Сброс</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="all">Все вопросы</button>
+    <button class="tab" data-tab="errors">Мои ошибки (<span id="errTabCount">0</span>)</button>
+    <button class="tab" data-tab="bookmarks">Закладки (<span id="bmTabCount">0</span>)</button>
+  </div>
+
+  <div id="cardContainer"></div>
+
+  <script>
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
+
+    const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е'];
+
+    const SAMPLE_QUESTIONS = [
+      {
+        id: 'q1',
+        subject: 'Кардиология',
+        topic: 'Электрофизиология и ЭКГ',
+        question: 'Какой фазе потенциала действия кардиомиоцитов рабочего миокарда соответствует зубец T на ЭКГ?',
+        options: [
+          'Фазе 0 (быстрой деполяризации)',
+          'Фазе 3 (быстрой конечной реполяризации)',
+          'Фазе 2 (медленной реполяризации / плато)',
+          'Фазе 4 (потенциалу покоя)'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 'q2',
+        subject: 'Кардиология',
+        topic: 'Аритмии и проводимость',
+        question: 'Какова нормальная продолжительность интервала PQ (PR) на ЭКГ у взрослого человека?',
+        options: [
+          '0,06 – 0,10 с',
+          '0,12 – 0,20 с',
+          '0,22 – 0,28 с',
+          '0,35 – 0,44 с'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 'q3',
+        subject: 'Судебная медицина',
+        topic: 'Танатология',
+        question: 'Какая стадия трупных пятен характеризуется тем, что при надавливании они полностью исчезают и восстанавливаются через 1–3 минуты?',
+        options: [
+          'Имбибиция',
+          'Гипостаз',
+          'Стаз (диффузия)',
+          'Аутолиз'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 'q4',
+        subject: 'Внутренние болезни',
+        topic: 'Ревматология',
+        question: 'Какой антиген главного комплекса гистосовместимости наиболее тесно ассоциирован с анкилозирующим спондилитом (болезнью Бехтерева)?',
+        options: [
+          'HLA-DR4',
+          'HLA-B27',
+          'HLA-DQ2',
+          'HLA-B51'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 'q5',
+        subject: 'Анатомия',
+        topic: 'Дыхательная система',
+        question: 'По форме лёгочный сегмент напоминает:',
+        options: [
+          'Срезанную пирамиду',
+          'Прямоугольник',
+          'Конус неправильной формы',
+          'Куб'
+        ],
+        correctIndex: 2
+      }
+    ];
+
+    let state = JSON.parse(localStorage.getItem('med_trainer_v1')) || {
+      questions: SAMPLE_QUESTIONS,
+      errors: [],
+      bookmarks: [],
+      streak: {},
+      ok: 0,
+      err: 0
+    };
+
+    let activeTab = 'all';
+    let currentQuestion = null;
+    let answered = false;
+
+    function saveState() {
+      localStorage.setItem('med_trainer_v1', JSON.stringify(state));
+      updateCounters();
+    }
+
+    function updateCounters() {
+      document.getElementById('okCount').textContent = state.ok;
+      document.getElementById('errCount').textContent = state.err;
+      document.getElementById('errTabCount').textContent = state.errors.length;
+      document.getElementById('bmTabCount').textContent = state.bookmarks.length;
+    }
+
+    function populateFilters() {
+      const subjSelect = document.getElementById('subjectFilter');
+      const topicSelect = document.getElementById('topicFilter');
+      const prevSubj = subjSelect.value;
+      const prevTopic = topicSelect.value;
+
+      const subjects = [...new Set(state.questions.map(q => q.subject))];
+      subjSelect.innerHTML = '<option value="all">Все предметы</option>' +
+        subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      if (subjects.includes(prevSubj)) subjSelect.value = prevSubj;
+
+      const filteredBySubj = subjSelect.value === 'all'
+        ? state.questions
+        : state.questions.filter(q => q.subject === subjSelect.value);
+
+      const topics = [...new Set(filteredBySubj.map(q => q.topic))];
+      topicSelect.innerHTML = '<option value="all">Все темы</option>' +
+        topics.map(t => `<option value="${t}">${t}</option>`).join('');
+      if (topics.includes(prevTopic)) topicSelect.value = prevTopic;
+    }
+
+    function getPool() {
+      const subj = document.getElementById('subjectFilter').value;
+      const topic = document.getElementById('topicFilter').value;
+
+      return state.questions.filter(q => {
+        if (subj !== 'all' && q.subject !== subj) return false;
+        if (topic !== 'all' && q.topic !== topic) return false;
+        if (activeTab === 'errors' && !state.errors.includes(q.id)) return false;
+        if (activeTab === 'bookmarks' && !state.bookmarks.includes(q.id)) return false;
+        return true;
+      });
+    }
+
+    function pickNextQuestion() {
+      answered = false;
+      const pool = getPool();
+      const container = document.getElementById('cardContainer');
+
+      if (!pool.length) {
+        container.innerHTML = `<div class="card empty-state">В этом разделе пока пусто.</div>`;
+        return;
+      }
+
+      // Приоритет ошибочным вопросам во вкладке "Все вопросы"
+      let candidates = pool;
+      if (activeTab === 'all') {
+        const errorPool = pool.filter(q => state.errors.includes(q.id));
+        if (errorPool.length > 0 && Math.random() < 0.45) {
+          candidates = errorPool;
+        }
+      }
+
+      if (candidates.length > 1 && currentQuestion) {
+        candidates = candidates.filter(q => q.id !== currentQuestion.id);
+      }
+
+      currentQuestion = candidates[Math.floor(Math.random() * candidates.length)];
+      renderQuestion(currentQuestion);
+    }
+
+    function renderQuestion(q) {
+      const isBookmarked = state.bookmarks.includes(q.id);
+      const streak = state.streak[q.id] || 0;
+      const container = document.getElementById('cardContainer');
+
+      // Перемешиваем варианты ответа
+      const indexedOptions = q.options.map((text, idx) => ({
+        text,
+        isCorrect: idx === q.correctIndex
+      }));
+      for (let i = indexedOptions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexedOptions[i], indexedOptions[j]] = [indexedOptions[j], indexedOptions[i]];
+      }
+
+      container.innerHTML = `
+        <div class="card">
+          <div class="card-meta">
+            <span class="badge">${q.subject}</span>
+            <span class="meta-topic">${q.topic} • ${streak}/3 верных подряд</span>
+            <button class="star-btn ${isBookmarked ? 'active' : ''}" id="starBtn">★</button>
+          </div>
+          <div class="question-text">${q.question}</div>
+          <div class="options" id="optionsList">
+            ${indexedOptions.map((opt, idx) => `
+              <button class="option" data-correct="${opt.isCorrect}">
+                <span class="opt-letter">${LETTERS[idx] || idx + 1}</span>
+                <span>${opt.text}</span>
+              </button>
+            `).join('')}
+          </div>
+          <button class="next-btn" id="nextBtn">Следующий →</button>
+        </div>
+      `;
+
+      document.getElementById('starBtn').onclick = () => {
+        if (state.bookmarks.includes(q.id)) {
+          state.bookmarks = state.bookmarks.filter(id => id !== q.id);
+        } else {
+          state.bookmarks.push(q.id);
+        }
+        saveState();
+        document.getElementById('starBtn').classList.toggle('active');
+      };
+
+      const optButtons = document.querySelectorAll('.option');
+      optButtons.forEach(btn => {
+        btn.onclick = () => {
+          if (answered) return;
+          answered = true;
+          const isCorrect = btn.dataset.correct === 'true';
+
+          if (isCorrect) {
+            btn.classList.add('correct');
+            state.ok++;
+            state.streak[q.id] = (state.streak[q.id] || 0) + 1;
+            if (state.streak[q.id] >= 2) {
+              state.errors = state.errors.filter(id => id !== q.id);
+            }
+          } else {
+            btn.classList.add('wrong');
+            optButtons.forEach(b => {
+              if (b.dataset.correct === 'true') b.classList.add('correct');
+            });
+            state.err++;
+            state.streak[q.id] = 0;
+            if (!state.errors.includes(q.id)) {
+              state.errors.push(q.id);
+            }
+          }
+
+          saveState();
+          document.getElementById('nextBtn').classList.add('show');
+        };
+      });
+
+      document.getElementById('nextBtn').onclick = pickNextQuestion;
+    }
+
+    // Парсер файлов MyTestXPro (+ и - перед вариантами)
+    function parseMyTestTxt(text, fileName) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const parsed = [];
+      let currentQ = null;
+      let options = [];
+      let correctIdx = -1;
+
+      const subjectName = fileName.replace(/\.txt$/i, '');
+
+      const flush = () => {
+        if (currentQ && options.length >= 2 && correctIdx !== -1) {
+          parsed.push({
+            id: 'imp_' + Math.random().toString(36).slice(2, 9),
+            subject: subjectName,
+            topic: 'Импортированный банк',
+            question: currentQ,
+            options,
+            correctIndex: correctIdx
+          });
+        }
+        currentQ = null;
+        options = [];
+        correctIdx = -1;
+      };
+
+      for (const line of lines) {
+        if (/^(\+|\*)\s*/.test(line)) {
+          correctIdx = options.length;
+          options.push(line.replace(/^(\+|\*)\s*/, ''));
+        } else if (/^-\s*/.test(line)) {
+          options.push(line.replace(/^-\s*/, ''));
+        } else {
+          if (options.length > 0) flush();
+          currentQ = currentQ ? currentQ + ' ' + line : line.replace(/^\d+[\.\)]\s*/, '');
+        }
+      }
+      flush();
+      return parsed;
+    }
+
+    document.getElementById('fileInput').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const imported = parseMyTestTxt(ev.target.result, file.name);
+        if (imported.length === 0) {
+          alert('Не удалось распознать вопросы. Убедись, что ответы начинаются с + и -.');
+          return;
+        }
+        state.questions = [...imported, ...state.questions];
+        saveState();
+        populateFilters();
+        document.getElementById('subjectFilter').value = imported[0].subject;
+        populateFilters();
+        pickNextQuestion();
+        alert(`Загружено вопросов: ${imported.length}`);
+      };
+      reader.readAsText(file, 'UTF-8');
+    };
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        activeTab = tab.dataset.tab;
+        pickNextQuestion();
+      };
+    });
+
+    document.getElementById('subjectFilter').onchange = () => {
+      populateFilters();
+      pickNextQuestion();
+    };
+    document.getElementById('topicFilter').onchange = pickNextQuestion;
+
+    document.getElementById('resetBtn').onclick = () => {
+      if (confirm('Сбросить всю статистику и загруженные базы к стандартным?')) {
+        localStorage.removeItem('med_trainer_v1');
+        location.reload();
+      }
+    };
+
+    populateFilters();
+    updateCounters();
+    pickNextQuestion();
+  </script>
+</body>
+</html>
