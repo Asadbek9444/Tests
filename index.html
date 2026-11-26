@@ -420,6 +420,26 @@
   .review-q { font-weight: 700; margin-bottom: 6px; font-size: 14px; }
   .review-ans-bad { color: var(--red); font-size: 13px; margin-bottom: 3px; }
   .review-ans-good { color: var(--green); font-size: 13px; font-weight: 600; }
+
+  /* ===== Рейтинг ===== */
+  .lb-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; }
+  .lb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .lb-title { font-weight: 800; font-size: 16px; }
+  .lb-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .lb-name-form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .lb-input { flex: 1; min-width: 140px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; }
+  .lb-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; }
+  .lb-row + .lb-row { margin-top: 4px; }
+  .lb-row.me { background: var(--primary-soft); border-color: var(--primary); }
+  .lb-rank { font-weight: 800; text-align: center; color: var(--text-muted); }
+  .lb-main { min-width: 0; }
+  .lb-nm { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-meta { font-size: 11.5px; color: var(--text-muted); }
+  .lb-score { text-align: right; font-weight: 800; color: var(--green); font-size: 15px; }
+  .lb-score small { display: block; color: var(--text-muted); font-weight: 600; font-size: 11px; }
+  .lb-live { color: var(--green); font-size: 10px; margin-left: 4px; }
+  .lb-gap { text-align: center; color: var(--text-muted); font-size: 12px; padding: 2px 0; }
+  .cycle-info { margin-top: 8px; font-size: 12px; color: #dbeafe; opacity: .9; }
 </style>
 </head>
 <body>
@@ -429,7 +449,7 @@
       <div class="brand-badge">СМЭ</div>
       <div>
         <div class="brand-title">Судебная медицина</div>
-        <div class="brand-sub" id="storageStatus">Автосохранение активно • 776 вопросов</div>
+        <div class="brand-sub" id="storageStatus">Автосохранение активно</div>
       </div>
     </div>
     <div class="top-actions">
@@ -446,7 +466,7 @@
     <!-- GLOBAL PROGRESS -->
     <section class="global-stats">
       <div class="stat-box">
-        <div class="stat-val" id="gSolved">0 / 776</div>
+        <div class="stat-val" id="gSolved">0</div>
         <div class="stat-lbl">Всего прорешано</div>
       </div>
       <div class="stat-box">
@@ -477,13 +497,34 @@
 
     <!-- EXAM BANNER -->
     <section class="exam-banner">
-      <h1>Общий экзаменационный микс (776 вопросов)</h1>
-      <p>Прогресс по каждому вопросу и номеру сессии сохраняется автоматически при каждом ответе.</p>
+      <h1 id="mixTitle">Общий экзаменационный микс</h1>
+      <p>50 случайных = 15 ситуационных + 35 тестовых. Вопросы не повторяются, пока не пройден весь круг, потом начинается новый.</p>
       <div class="exam-controls">
         <button class="btn-hero" onclick="startRandomAll(50)">⚡ 50 случайных</button>
         <button class="btn-hero-sec" onclick="startRandomAll(100)">100 случайных</button>
         <button class="btn-hero-sec" onclick="startUnsolvedAll()">Только нерешённые</button>
       </div>
+      <div class="cycle-info" id="cycleInfo"></div>
+    </section>
+
+    <!-- LEADERBOARD -->
+    <section class="lb-card" id="lbCard">
+      <div class="lb-head">
+        <div>
+          <div class="lb-title">🏆 Общий рейтинг</div>
+          <div class="lb-sub" id="lbStatus">Загрузка…</div>
+        </div>
+        <div id="lbWho" class="hidden" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <span class="lb-sub" id="lbWhoName"></span>
+          <button class="icon-btn" onclick="lbChangeName()">Сменить имя</button>
+          <button class="icon-btn danger" onclick="lbLeave()">Выйти из рейтинга</button>
+        </div>
+      </div>
+      <div id="lbJoin" class="lb-name-form hidden">
+        <input id="lbNameInput" class="lb-input" type="text" maxlength="24" placeholder="Твоё имя для рейтинга">
+        <button class="btn-hero" onclick="lbSaveName()">Участвовать</button>
+      </div>
+      <div id="lbRows"></div>
     </section>
 
     <!-- FILTERS -->
@@ -528,6 +569,7 @@
         </div>
         <div class="score-pills">
           <span class="pill-num" id="qCounter">1 / 50</span>
+          <span class="pill-num hidden" id="rankChip" style="background:var(--amber-bg); color:var(--amber);">🏆</span>
           <span class="pill-ok" id="okCounter">✓ 0</span>
           <span class="pill-err" id="errCounter">✕ 0</span>
         </div>
@@ -629,9 +671,9 @@ function checkStorageAvailability() {
     const testKey = '__sme_test__';
     window.localStorage.setItem(testKey, '1');
     window.localStorage.removeItem(testKey);
-    if (statusEl) statusEl.textContent = 'Автосохранение в браузере активно • 776 вопросов';
+    if (statusEl) statusEl.textContent = `Автосохранение в браузере активно • ${ALL_QUESTIONS.length} вопросов`;
   } catch (e) {
-    if (statusEl) statusEl.textContent = 'Режим сессии (localStorage заблокирован) • 776 вопросов';
+    if (statusEl) statusEl.textContent = `Режим сессии (localStorage заблокирован) • ${ALL_QUESTIONS.length} вопросов`;
   }
 }
 
@@ -677,7 +719,8 @@ function exportProgressJson() {
     progress: getProgressMap(),
     activeSession: getActiveSession(),
     theme: storageGet(KEY_THEME) || 'dark',
-    prefs: JSON.parse(storageGet(KEY_PREFS) || '{}')
+    prefs: JSON.parse(storageGet(KEY_PREFS) || '{}'),
+    randomPool: getRandomPool()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -710,9 +753,12 @@ function importProgressJson(event) {
         storageSet(KEY_PREFS, JSON.stringify(data.prefs));
         loadUiPrefs();
       }
+      if (data.randomPool) storageSet(KEY_RANDOM_POOL, JSON.stringify(data.randomPool));
       updateGlobalDashboard();
       renderResumeBanner();
       renderTopics();
+      renderCycleInfo();
+      scheduleSync();
       alert('Прогресс успешно восстановлен!');
     } catch (e) {
       alert('Ошибка чтения файла резервной копии.');
@@ -732,14 +778,18 @@ function recordQuestionProgress(uid, isCorrect) {
   map[uid] = isCorrect ? 1 : 0;
   storageSet(KEY_PROGRESS, JSON.stringify(map));
   updateGlobalDashboard();
+  scheduleSync();
 }
 function resetAllProgress() {
-  if (!confirm('Сбросить весь сохранённый прогресс по всем 776 вопросам?')) return;
+  if (!confirm(`Сбросить весь сохранённый прогресс по всем ${ALL_QUESTIONS.length} вопросам?`)) return;
   storageRemove(KEY_PROGRESS);
   storageRemove(KEY_ACTIVE_SESSION);
+  storageRemove(KEY_RANDOM_POOL);
   updateGlobalDashboard();
   renderResumeBanner();
   renderTopics();
+  renderCycleInfo();
+  scheduleSync();
 }
 
 function saveActiveSession() {
@@ -959,17 +1009,13 @@ function renderTopics() {
   });
 }
 
-function startRandomAll(limit) {
-  lastSessionConfig = { type: 'randomAll', limit };
-  const subset = shuffleArray(ALL_QUESTIONS).slice(0, Math.min(limit, ALL_QUESTIONS.length));
-  launchSession(`Случайные ${subset.length} из 776`, subset);
-}
+/* startRandomAll определён ниже (15 ситуац. + 35 тест. без повторов) */
 
 function startUnsolvedAll() {
   const map = getProgressMap();
   const pool = ALL_QUESTIONS.filter(q => map[q.uid] === undefined);
   if (pool.length === 0) {
-    alert('Ты уже прорешал все 776 вопросов! Можешь сделать сброс или пройти раздел «Ошибки».');
+    alert(`Ты уже прорешал все ${ALL_QUESTIONS.length} вопросов! Можешь сделать сброс или пройти раздел «Ошибки».`);
     return;
   }
   lastSessionConfig = { type: 'unsolvedAll' };
@@ -1197,6 +1243,12 @@ function finishQuiz() {
   });
 
   const pct = Math.round((ok / total) * 100);
+  if (lastSessionConfig && lastSessionConfig.type === 'randomAll') {
+    player.sessions = (player.sessions || 0) + 1;
+    if (pct > (player.best || 0)) player.best = pct;
+    savePlayer();
+    scheduleSync();
+  }
   document.getElementById('quizView').classList.add('hidden');
   document.getElementById('resultView').classList.remove('hidden');
 
@@ -1224,12 +1276,244 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/* ============================================================
+   СЛУЧАЙНЫЕ: 15 ситуационных + 35 тестовых, без повторов по кругу
+   ============================================================ */
+const KEY_RANDOM_POOL = 'sme_random_pool_v1';
+
+function getRandomPool() {
+  try {
+    const p = JSON.parse(storageGet(KEY_RANDOM_POOL) || 'null');
+    if (p && Array.isArray(p.situational) && Array.isArray(p.test)) {
+      p.cycles = p.cycles || { situational: 1, test: 1 };
+      return p;
+    }
+  } catch (e) {}
+  return { situational: [], test: [], cycles: { situational: 1, test: 1 } };
+}
+function saveRandomPool(p) { storageSet(KEY_RANDOM_POOL, JSON.stringify(p)); }
+
+function drawFromCycle(pool, kind, n) {
+  const all = ALL_QUESTIONS.filter(q => q.kind === kind);
+  const valid = new Set(all.map(q => q.uid));
+  const used = new Set(pool[kind].filter(u => valid.has(u)));
+  const avail = shuffleArray(all.filter(q => !used.has(q.uid)));
+  let picked = avail.slice(0, n);
+  if (picked.length < n) {
+    // круг закончился: берём остаток и начинаем новый круг
+    const have = new Set(picked.map(q => q.uid));
+    const fresh = shuffleArray(all.filter(q => !have.has(q.uid))).slice(0, n - picked.length);
+    pool[kind] = fresh.map(q => q.uid);
+    pool.cycles[kind] = (pool.cycles[kind] || 1) + 1;
+    picked = picked.concat(fresh);
+  } else {
+    pool[kind] = Array.from(used).concat(picked.map(q => q.uid));
+  }
+  return picked;
+}
+
+function startRandomAll(limit) {
+  lastSessionConfig = { type: 'randomAll', limit };
+  const nSit = Math.round(limit * 0.3);
+  const nTest = limit - nSit;
+  const pool = getRandomPool();
+  const sit = drawFromCycle(pool, 'situational', nSit);
+  const tst = drawFromCycle(pool, 'test', nTest);
+  saveRandomPool(pool);
+  renderCycleInfo();
+  launchSession(`Случайные ${sit.length + tst.length} (${sit.length} ситуац. + ${tst.length} тест.)`, shuffleArray(sit.concat(tst)));
+}
+
+function renderCycleInfo() {
+  const el = document.getElementById('cycleInfo');
+  if (!el) return;
+  const pool = getRandomPool();
+  const left = kind => {
+    const all = ALL_QUESTIONS.filter(q => q.kind === kind);
+    const used = new Set(pool[kind]);
+    return all.filter(q => !used.has(q.uid)).length;
+  };
+  el.textContent = `Круг ситуационных: ${pool.cycles.situational} (осталось ${left('situational')}) • круг тестовых: ${pool.cycles.test} (осталось ${left('test')})`;
+}
+
+/* ============================================================
+   ОБЩИЙ РЕЙТИНГ (Firebase Realtime Database, REST)
+   ============================================================ */
+// >>> ВСТАВЬ СЮДА ССЫЛКУ НА БАЗУ, например: 'https://smetrainer-default-rtdb.firebaseio.com'
+const FIREBASE_DB_URL = 'https://asadbek9444-16870-default-rtdb.firebaseio.com';
+// <<<
+const LB_URL = FIREBASE_DB_URL.replace(/\/+$/, '');
+const LB_ENABLED = !!LB_URL;
+const KEY_PLAYER = 'sme_player_v1';
+
+let player = (function () {
+  try {
+    const p = JSON.parse(storageGet(KEY_PLAYER) || 'null');
+    if (p && p.id) return p;
+  } catch (e) {}
+  return { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name: '', best: 0, sessions: 0 };
+})();
+function savePlayer() { storageSet(KEY_PLAYER, JSON.stringify(player)); }
+
+let boardData = {};
+let boardOk = null;
+let syncTimer = null;
+
+function lbAcc(p) { return p.solved > 0 ? p.correct / p.solved : 0; }
+
+function lbSorted() {
+  return Object.keys(boardData || {})
+    .map(id => Object.assign({ id }, boardData[id]))
+    .filter(p => p && typeof p.name === 'string' && p.name)
+    .map(p => Object.assign(p, { correct: +p.correct || 0, solved: +p.solved || 0 }))
+    .sort((a, b) => (b.correct - a.correct) || (lbAcc(b) - lbAcc(a)) || a.name.localeCompare(b.name));
+}
+
+async function fetchBoard() {
+  if (!LB_ENABLED) return;
+  try {
+    const r = await fetch(`${LB_URL}/players.json`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    boardData = (await r.json()) || {};
+    boardOk = true;
+  } catch (e) {
+    boardOk = false;
+  }
+  renderLeaderboard();
+}
+
+function scheduleSync() {
+  if (!LB_ENABLED || !player.name) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncPlayer, 600);
+}
+
+async function syncPlayer() {
+  if (!LB_ENABLED || !player.name) return;
+  const vals = Object.values(getProgressMap());
+  const body = {
+    name: player.name,
+    solved: vals.length,
+    correct: vals.filter(v => v === 1).length,
+    wrong: vals.filter(v => v === 0).length,
+    best: player.best || 0,
+    sessions: player.sessions || 0,
+    updated: { '.sv': 'timestamp' }
+  };
+  try {
+    const r = await fetch(`${LB_URL}/players/${player.id}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    boardOk = true;
+  } catch (e) {
+    boardOk = false;
+  }
+  fetchBoard();
+}
+
+function lbSaveName() {
+  const input = document.getElementById('lbNameInput');
+  const name = (input.value || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24);
+  if (!name) { input.focus(); return; }
+  player.name = name;
+  savePlayer();
+  syncPlayer();
+  renderLeaderboard();
+}
+function lbChangeName() {
+  const name = prompt('Новое имя в рейтинге:', player.name);
+  if (name === null) return;
+  const clean = name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24);
+  if (!clean) return;
+  player.name = clean;
+  savePlayer();
+  syncPlayer();
+  renderLeaderboard();
+}
+async function lbLeave() {
+  if (!confirm('Убрать тебя из общего рейтинга? Прогресс на этом устройстве останется.')) return;
+  try { await fetch(`${LB_URL}/players/${player.id}.json`, { method: 'DELETE' }); } catch (e) {}
+  player.name = '';
+  savePlayer();
+  fetchBoard();
+}
+
+function renderLeaderboard() {
+  const status = document.getElementById('lbStatus');
+  const rowsEl = document.getElementById('lbRows');
+  const join = document.getElementById('lbJoin');
+  const who = document.getElementById('lbWho');
+  const chip = document.getElementById('rankChip');
+  if (!status) return;
+
+  if (!LB_ENABLED) {
+    status.textContent = 'Рейтинг выключен: не подключена база (см. FIREBASE_DB_URL в коде).';
+    join.classList.add('hidden'); who.classList.add('hidden'); chip.classList.add('hidden');
+    rowsEl.innerHTML = '';
+    return;
+  }
+
+  join.classList.toggle('hidden', !!player.name);
+  who.classList.toggle('hidden', !player.name);
+  document.getElementById('lbWhoName').textContent = player.name ? 'Ты: ' + player.name : '';
+
+  const list = lbSorted();
+  const meIdx = list.findIndex(p => p.id === player.id);
+  status.textContent = boardOk === false
+    ? 'Нет связи с рейтингом, пробую снова…'
+    : `Участников: ${list.length} • обновляется автоматически`;
+
+  const now = Date.now();
+  const medal = i => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1));
+  const rowHtml = (p, i) => {
+    const live = p.updated && (now - p.updated) < 120000;
+    const acc = Math.round(lbAcc(p) * 100);
+    return `
+      <div class="lb-row${p.id === player.id ? ' me' : ''}">
+        <div class="lb-rank">${medal(i)}</div>
+        <div class="lb-main">
+          <div class="lb-nm">${escapeHtml(p.name)}${live ? '<span class="lb-live" title="сейчас решает">●</span>' : ''}</div>
+          <div class="lb-meta">решено ${p.solved} • сессий ${+p.sessions || 0} • лучшая ${+p.best || 0}%</div>
+        </div>
+        <div class="lb-score">✓ ${p.correct}<small>точность ${acc}%</small></div>
+      </div>`;
+  };
+
+  const TOP = 15;
+  let html = list.slice(0, TOP).map((p, i) => rowHtml(p, i)).join('');
+  if (meIdx >= TOP) html += `<div class="lb-gap">⋯</div>` + rowHtml(list[meIdx], meIdx);
+  if (list.length === 0) html = `<div class="lb-sub">Пока никого нет. Введи имя и стань первым.</div>`;
+  rowsEl.innerHTML = html;
+
+  if (meIdx >= 0) {
+    chip.textContent = `🏆 ${meIdx + 1}/${list.length}`;
+    chip.classList.remove('hidden');
+  } else {
+    chip.classList.add('hidden');
+  }
+}
+
+function initLeaderboard() {
+  renderLeaderboard();
+  if (!LB_ENABLED) return;
+  fetchBoard();
+  if (player.name) scheduleSync();
+  setInterval(() => { if (document.visibilityState === 'visible') fetchBoard(); }, 8000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') fetchBoard(); });
+}
+
 checkStorageAvailability();
 initTheme();
 loadUiPrefs();
 updateGlobalDashboard();
 renderResumeBanner();
 renderTopics();
+document.getElementById('mixTitle').textContent = `Общий экзаменационный микс (${ALL_QUESTIONS.length} вопросов)`;
+renderCycleInfo();
+initLeaderboard();
 </script>
 </body>
 </html>
